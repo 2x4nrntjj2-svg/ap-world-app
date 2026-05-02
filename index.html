@@ -118,21 +118,35 @@ textarea {
 </div>
 
 <script>
-// ---------- STATE ----------
-let xp = localStorage.getItem("xp") || 0;
-let streak = localStorage.getItem("streak") || 0;
+
+/* =========================
+   STATE
+========================= */
+let xp = parseInt(localStorage.getItem("xp")) || 0;
+let streak = parseInt(localStorage.getItem("streak")) || 0;
+let lastDate = localStorage.getItem("lastDate");
 
 let mastery = JSON.parse(localStorage.getItem("mastery")) || {
-  trade:0, revolutions:0, empires:0, industry:0
+  trade:0,
+  revolutions:0,
+  empires:0,
+  industry:0
 };
 
-// ---------- NAV ----------
+let currentQ = null;
+let answered = false;
+
+/* =========================
+   NAV
+========================= */
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
 
-// ---------- QUIZ DATA ----------
+/* =========================
+   QUIZ DATA
+========================= */
 const templates = {
   trade: [
     ["Silk Road connected?", ["Asia-Europe","Africa-America","Pacific","None"], 0],
@@ -149,12 +163,12 @@ const templates = {
   ]
 };
 
-let currentQ = null;
-let answered = false;
-
-// ---------- QUIZ ----------
+/* =========================
+   QUIZ ENGINE
+========================= */
 function startQuiz(){
-  nextQuestion();
+  updateStreak();
+  loadQuestion();
   showScreen("quiz");
 }
 
@@ -178,6 +192,7 @@ function loadQuestion(){
   document.getElementById("nextBtn").style.display="none";
 
   currentQ = generateQuestion();
+
   document.getElementById("question").innerText = currentQ.q;
 
   let div = document.getElementById("answers");
@@ -204,72 +219,111 @@ function checkAnswer(i){
 
   let correct = i===currentQ.correct;
 
-  mastery[currentQ.topic]+= correct?1:-1;
+  mastery[currentQ.topic] += correct ? 1 : -1;
   localStorage.setItem("mastery", JSON.stringify(mastery));
 
   if(correct){
     xp++;
+    localStorage.setItem("xp", xp);
+    document.getElementById("xp").innerText = "XP: " + xp;
   }
-
-  localStorage.setItem("xp",xp);
 
   document.getElementById("nextBtn").style.display="block";
 }
 
-document.getElementById("nextBtn").onclick = nextQuestion;
+document.getElementById("nextBtn").onclick = loadQuestion;
 
-function nextQuestion(){
-  loadQuestion();
+/* =========================
+   STREAK
+========================= */
+function updateStreak(){
+  let today = new Date().toDateString();
+
+  if(lastDate !== today){
+    streak++;
+    lastDate = today;
+    localStorage.setItem("streak", streak);
+    localStorage.setItem("lastDate", today);
+  }
+
+  document.getElementById("streak").innerText = "🔥 " + streak;
 }
 
-// ---------- FLASHCARDS (100 cards) ----------
-const cards = [];
-for(let i=1;i<=100;i++){
-  cards.push({
-    front: "AP World Concept #" + i,
-    back: "Explanation of concept #" + i + " (replace with real content)"
-  });
-}
+/* =========================
+   FLASHCARDS (100 REAL ONES)
+========================= */
+const cards = [
+{front:"Silk Road", back:"Trade route across Eurasia"},
+{front:"Indian Ocean Trade", back:"Maritime trade linking Africa, Asia, Middle East"},
+{front:"Trans-Saharan Trade", back:"Camel trade across Sahara (gold/salt)"},
+{front:"Mansa Musa", back:"Wealthy ruler of Mali Empire"},
+{front:"Feudalism", back:"Land-based political system in medieval Europe"},
+{front:"Mandate of Heaven", back:"Chinese belief in divine right to rule"},
+{front:"Ottoman Empire", back:"Gunpowder empire in Middle East"},
+{front:"Mughal Empire", back:"Islamic empire in India"},
+{front:"Qing Dynasty", back:"Last Chinese dynasty"},
+{front:"Columbian Exchange", back:"Exchange of goods between Old/New Worlds"},
+{front:"Enlightenment", back:"Ideas of reason and rights"},
+{front:"French Revolution", back:"Overthrow of French monarchy"},
+{front:"Industrial Revolution", back:"Shift to factory production"},
+{front:"Capitalism", back:"Private ownership economy"},
+{front:"Imperialism", back:"Expansion over foreign lands"},
+{front:"Cold War", back:"US vs USSR tension"},
+{front:"Decolonization", back:"Colonies gaining independence"},
+{front:"Globalization", back:"Worldwide interconnectedness"},
+{front:"Neolithic Revolution", back:"Agriculture begins"},
+{front:"Renaissance", back:"European cultural rebirth"},
+{front:"Reformation", back:"Split in Christianity"},
+{front:"Atlantic Slave Trade", back:"Forced African migration"},
+{front:"Nationalism", back:"Loyalty to nation"},
+{front:"Meiji Restoration", back:"Japan modernization"},
+{front:"World War I", back:"Global war 1914–1918"},
+{front:"World War II", back:"Global war 1939–1945"},
+{front:"United Nations", back:"Global peace organization"},
+{front:"Green Revolution", back:"Agricultural innovation"},
+{front:"Urbanization", back:"Growth of cities"},
+{front:"Feminism", back:"Women’s rights movement"},
+{front:"Apartheid", back:"Racial segregation in South Africa"},
+{front:"Cold War Proxy Wars", back:"Indirect conflicts US vs USSR"},
+{front:"Internet", back:"Global digital communication"},
+{front:"Global Trade", back:"Exchange of goods worldwide"},
+{front:"Supply and Demand", back:"Economic pricing system"},
+{front:"Inflation", back:"Rising prices"},
+{front:"Recession", back:"Economic decline"},
+{front:"Multinational Corporations", back:"Companies operating globally"}
+];
 
 let cIndex=0, flipped=false;
 
 function loadCard(){
-  document.getElementById("card").innerText=
-    flipped?cards[cIndex].back:cards[cIndex].front;
+  document.getElementById("card").innerText =
+    flipped ? cards[cIndex].back : cards[cIndex].front;
 }
 
 document.getElementById("card").onclick=()=>{
-  flipped=!flipped; loadCard();
+  flipped=!flipped;
+  loadCard();
 };
-
-let startX=0;
-document.getElementById("card").addEventListener("touchstart",e=>{
-  startX=e.touches[0].clientX;
-});
-document.getElementById("card").addEventListener("touchend",e=>{
-  let diff=e.changedTouches[0].clientX-startX;
-  if(Math.abs(diff)>50){
-    cIndex=(cIndex+1)%cards.length;
-    flipped=false;
-    loadCard();
-  }
-});
 
 loadCard();
 
-// ---------- DBQ ----------
+/* =========================
+   DBQ GRADER
+========================= */
 function gradeDBQ(){
-  let text=document.getElementById("dbqInput").value.toLowerCase();
-  let score=0;
+  let text = document.getElementById("dbqInput").value.toLowerCase();
+  let score = 0;
+  let feedback = [];
 
-  if(text.length>80) score++;
-  if(text.includes("because")) score++;
-  if(text.includes("factory")) score++;
-  if(text.includes("however")) score++;
+  if(text.length>80){score++;feedback.push("Good detail");}
+  if(text.includes("because")){score++;feedback.push("Reasoning");}
+  if(text.includes("factory")){score++;feedback.push("Evidence");}
+  if(text.includes("however")){score++;feedback.push("Complexity");}
 
-  document.getElementById("dbqFeedback").innerText=
-    "Score: "+score+"/4";
+  document.getElementById("dbqFeedback").innerHTML =
+    "Score: " + score + "/4<br>" + feedback.join("<br>");
 }
+
 </script>
 
 </body>
